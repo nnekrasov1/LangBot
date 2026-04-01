@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: LangBot
+Version: 1.0.0
+Summary: Telegram-бот для изучения английского языка
+Author: Nekrasov N.A.; Ovchinnikov D.A.
+Project-URL: Documentation, 
+Project-URL: Source, https://github.com/nnekrasov1/LangBot
+Requires-Python: >=3.12
+Requires-Dist: pyTelegramBotAPI
+Requires-Dist: python-dotenv
+Provides-Extra: docs
+Requires-Dist: sphinx>=7.0; extra == "docs"
+Requires-Dist: sphinx-rtd-theme; extra == "docs"
+Requires-Dist: sphinx-copybutton; extra == "docs"
+Requires-Dist: myst-parser; extra == "docs"
+Provides-Extra: dev
+Requires-Dist: sphinx>=7.0; extra == "dev"
+Requires-Dist: sphinx-rtd-theme; extra == "dev"
+Requires-Dist: sphinx-copybutton; extra == "dev"
+Requires-Dist: myst-parser; extra == "dev"
+Requires-Dist: pytest; extra == "dev"
+Dynamic: author
+Dynamic: project-url
+Dynamic: provides-extra
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary

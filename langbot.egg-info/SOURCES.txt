@@ -1,0 +1,12 @@
+README.md
+setup.py
+LangBot.egg-info/PKG-INFO
+LangBot.egg-info/SOURCES.txt
+LangBot.egg-info/dependency_links.txt
+LangBot.egg-info/requires.txt
+LangBot.egg-info/top_level.txt
+langbot.egg-info/PKG-INFO
+langbot.egg-info/SOURCES.txt
+langbot.egg-info/dependency_links.txt
+langbot.egg-info/requires.txt
+langbot.egg-info/top_level.txt
