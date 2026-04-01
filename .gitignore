@@ -1,4 +1,12 @@
-# created by virtualenv automatically
+# IDE и редакторы
 .idea/
-.env
+
+# Виртуальные окружения
+venv/
 .venv/
+
+# Секреты и конфигурация
+.env
+
+# Байт-код Python
+__pycache__/
