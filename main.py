@@ -3,6 +3,7 @@ from telebot import types
 import random
 from dotenv import load_dotenv
 import os
+import sqlite3
 
 # Загружаем переменные из файла .env
 load_dotenv()
@@ -13,6 +14,23 @@ bot = telebot.TeleBot(TOKEN)
 user_dicts = {}
 user_states = {}
 
+def init_db():
+    """Создает таблицу в базе данных, если она еще не существует."""
+    conn = sqlite3.connect('langbot.db', check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS dictionary (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            word_en TEXT,
+            word_ru TEXT
+        )
+    ''')
+    conn.commit()
+    return conn, cursor
+
+# Подключаемся
+db_conn, db_cursor = init_db()
 
 def main_menu():
     """
@@ -22,7 +40,8 @@ def main_menu():
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add("➕ Добавить слово", "📑 Мой словарь")
-    markup.add("✒️ Практика перевода", "📖 Теория")
+    markup.add("✒️ Практика перевода", "🗑️ Удалить слово")
+    markup.add("📖 Теория")
     return markup
 
 
@@ -87,39 +106,49 @@ def handle_main_logic(message):
     # Проверка ответа в режиме тренировки
     elif uid in user_states:
         check_answer(message)
+    elif text == "🗑️ Удалить слово":
+        msg = bot.send_message(uid, "Введите английское слово, которое хотите удалить:")
+        bot.register_next_step_handler(msg, process_delete_word)
 
 
 def process_add_word(message):
     """
-    Обрабатывает ввод пользователя для добавления нового слова в словарь.
-    Ожидает формат 'Слово - Перевод'.
+        Обрабатывает ввод пользователя для добавления нового слова в словарь.
+        Ожидает формат 'Слово - Перевод'.
 
-    :param message: Объект сообщения, содержащий добавляемое слово и перевод.
+        :param message: Объект сообщения, содержащий добавляемое слово и перевод.
     """
     try:
-        if '-' not in message.text:
-            bot.send_message(message.chat.id, "Ошибка! Используйте дефис.")
-            return
         en, ru = map(str.strip, message.text.split('-', 1))
-        user_dicts[message.chat.id][en.lower()] = ru.lower()
-        bot.send_message(message.chat.id, f"Сохранено: {en}")
+        uid = message.chat.id
+
+        # Записываем в базу
+        db_cursor.execute(
+            "INSERT INTO dictionary (user_id, word_en, word_ru) VALUES (?, ?, ?)",
+            (uid, en.lower(), ru.lower())
+        )
+        db_conn.commit()
+
+        bot.send_message(uid, f"Сохранено в базу: {en}")
     except Exception:
-        bot.send_message(message.chat.id, "Ошибка ввода.")
+        bot.send_message(message.chat.id, "Ошибка! Используйте формат: Слово - Перевод")
 
 
 def show_dictionary(uid):
     """
-    Выводит пользователю список всех сохраненных им слов.
+        Выводит пользователю список всех сохраненных им слов.
 
-    :param uid: Уникальный идентификатор чата (пользователя).
+        :param uid: Уникальный идентификатор чата (пользователя).
     """
-    words = user_dicts.get(uid, {})
-    if not words:
-        bot.send_message(uid, "Словарь пуст.")
-        return
-    res = "\n".join([f"{k} — {v}" for k, v in words.items()])
-    bot.send_message(uid, f"Ваш словарь:\n{res}")
+    db_cursor.execute("SELECT word_en, word_ru FROM dictionary WHERE user_id = ?", (uid,))
+    rows = db_cursor.fetchall()
 
+    if not rows:
+        bot.send_message(uid, "Ваш словарь в базе данных пуст.")
+        return
+
+    res = "\n".join([f"{en} — {ru}" for en, ru in rows])
+    bot.send_message(uid, f"Ваш словарь:\n{res}")
 
 def start_practice(uid):
     """
@@ -150,6 +179,36 @@ def check_answer(message):
     else:
         bot.send_message(uid, f"☝️ Нет. Правильно: {correct}")
 
+
+def process_delete_word(message):
+    """
+    Удаляет выбранное слово из базы данных SQLite для текущего пользователя.
+
+    :param message: Объект сообщения с английским словом для удаления.
+    """
+    uid = message.chat.id
+    word_to_delete = message.text.lower().strip()
+
+    try:
+        # Проверяем, есть ли такое слово
+        db_cursor.execute(
+            "SELECT id FROM dictionary WHERE user_id = ? AND word_en = ?",
+            (uid, word_to_delete)
+        )
+        row = db_cursor.fetchone()
+
+        if row:
+            db_cursor.execute(
+                "DELETE FROM dictionary WHERE user_id = ? AND word_en = ?",
+                (uid, word_to_delete)
+            )
+            db_conn.commit()
+            bot.send_message(uid, f"✅ Слово '{word_to_delete}' успешно удалено.")
+        else:
+            bot.send_message(uid, f"❌ Слово '{word_to_delete}' не найдено в вашем словаре.")
+
+    except Exception as e:
+        bot.send_message(uid, "⚠️ Произошла ошибка при обращении к базе данных.")
 
 def send_theory_text(uid):
     """
