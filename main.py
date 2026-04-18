@@ -14,9 +14,15 @@ bot = telebot.TeleBot(TOKEN)
 user_dicts = {}
 user_states = {}
 
+
 def init_db():
-    """Создает таблицу в базе данных, если она еще не существует."""
-    conn = sqlite3.connect('langbot.db', check_same_thread=False)
+    """
+    Инициализирует подключение к SQLite. Путь к БД берется из переменных окружения.
+    """
+    # Читаем путь из окружения (по умолчанию берем 'langbot.db' в текущей папке)
+    db_path = os.getenv('DB_PATH', 'langbot.db')
+
+    conn = sqlite3.connect(db_path, check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS dictionary (

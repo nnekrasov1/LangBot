@@ -1,0 +1,13 @@
+services:
+  langbot:
+    build: .
+    container_name: langbot_app
+    restart: unless-stopped
+    env_file:
+      - .env  # Подтягиваем токен Telegram
+    environment:
+      # Указываем путь к БД внутри папки data, чтобы данные сохранялись
+      - DB_PATH=/app/data/langbot.db
+    volumes:
+      # Связываем локальную папку ./data с папкой /app/data внутри контейнера
+      - ./data:/app/data
