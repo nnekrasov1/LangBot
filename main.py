@@ -97,8 +97,8 @@ def handle_text(message):
 
 
 def run_flask():
-    app.run(host='0.0.0.0', port=5000)
-
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
     threading.Thread(target=run_flask, daemon=True).start()
