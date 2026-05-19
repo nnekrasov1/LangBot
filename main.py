@@ -4,6 +4,7 @@ import random
 from dotenv import load_dotenv
 import os
 import sqlite3
+import json
 
 # Загружаем переменные из файла .env
 load_dotenv()
@@ -45,10 +46,44 @@ def main_menu():
     :return: Объект ReplyKeyboardMarkup с основными кнопками меню.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+
+    WEB_APP_URL = "https://github.com/nnekrasov1/LangBot/blob/master/index.html"  # Ссылка на фронт
+    web_app_info = types.WebAppInfo(url=WEB_APP_URL)
+    btn_web_app = types.KeyboardButton("📱 Открыть Mini App", web_app=web_app_info)
+    markup.add(btn_web_app)
+
     markup.add("➕ Добавить слово", "📑 Мой словарь")
     markup.add("✒️ Практика перевода", "🗑️ Удалить слово")
     markup.add("📖 Теория")
     return markup
+
+
+@bot.message_handler(content_types=['web_app_data'])
+def handle_web_app_data(message):
+    """
+    Обрабатывает данные (JSON), присланные из Web App.
+    """
+    try:
+        # Получаем данные из Mini App
+        data = json.loads(message.web_app_data.data)
+
+        if data.get("action") == "add_word":
+            en = data["en"].lower()
+            ru = data["ru"].lower()
+            uid = message.chat.id
+
+            # Записываем в базу
+            db_cursor.execute(
+                "INSERT INTO dictionary (user_id, word_en, word_ru) VALUES (?, ?, ?)",
+                (uid, en, ru)
+            )
+            db_conn.commit()
+
+            bot.send_message(uid, f"✅ Успешно добавлено через Mini App:\n*{en}* — {ru}", parse_mode="Markdown")
+
+    except Exception as e:
+        bot.send_message(message.chat.id, "❌ Произошла ошибка при обработке данных из Mini App.")
+        print(f"Web App Error: {e}")
 
 
 def theory_menu():
