@@ -3,22 +3,34 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LangBot Mini App</title>
-    <!-- Подключаем библиотеку Telegram Web App -->
+    <title>LangBot Control Panel</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        /* Стилизация под тему Telegram */
         body {
             font-family: sans-serif;
-            background-color: var(--tg-theme-bg-color, #ffffff);
+            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
             color: var(--tg-theme-text-color, #000000);
-            padding: 20px;
-            text-align: center;
+            padding: 15px;
+            margin: 0;
+            padding-bottom: 30px;
+        }
+        .card {
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: var(--tg-theme-text-color, #000000);
         }
         input {
             width: 100%;
             padding: 12px;
-            margin: 10px 0;
+            margin-bottom: 10px;
             box-sizing: border-box;
             border: 1px solid var(--tg-theme-hint-color, #ccc);
             border-radius: 8px;
@@ -36,41 +48,72 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 15px;
+            margin-top: 5px;
+        }
+        .btn-danger {
+            background-color: #ff3b30;
+        }
+        .btn-outline {
+            background-color: transparent;
+            border: 2px solid var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-color, #3390ec);
         }
     </style>
 </head>
 <body>
-    <h2>Добавить новое слово</h2>
 
-    <input type="text" id="word_en" placeholder="Английское слово (например, Apple)">
-    <input type="text" id="word_ru" placeholder="Перевод (например, Яблоко)">
+    <!-- Карточка добавления -->
+    <div class="card">
+        <h3>➕ Добавить слово</h3>
+        <input type="text" id="word_en" placeholder="Английское слово (Cat)">
+        <input type="text" id="word_ru" placeholder="Перевод (Кот)">
+        <button onclick="addWord()">Сохранить</button>
+    </div>
 
-    <button onclick="sendDataToBot()">Сохранить слово</button>
+    <!-- Карточка удаления -->
+    <div class="card">
+        <h3>🗑️ Удалить слово</h3>
+        <input type="text" id="del_en" placeholder="Какое слово удалить? (Cat)">
+        <button class="btn-danger" onclick="deleteWord()">Удалить из словаря</button>
+    </div>
+
+    <!-- Карточка действий -->
+    <div class="card">
+        <h3>🚀 Меню действий</h3>
+        <button class="btn-outline" onclick="sendAction('show_dict')">📑 Показать мой словарь</button>
+        <button class="btn-outline" onclick="sendAction('practice')">✒️ Начать практику</button>
+        <button class="btn-outline" onclick="sendAction('theory')">📖 Читать теорию</button>
+    </div>
 
     <script>
-        // Инициализируем Web App
         const tg = window.Telegram.WebApp;
-        tg.expand(); // Разворачиваем на всю высоту
+        tg.expand();
 
-        function sendDataToBot() {
+        function sendToBot(dataObj) {
+            tg.sendData(JSON.stringify(dataObj));
+        }
+
+        function addWord() {
             const en = document.getElementById('word_en').value.trim();
             const ru = document.getElementById('word_ru').value.trim();
-
             if (!en || !ru) {
-                tg.showAlert("Пожалуйста, заполните оба поля!");
+                tg.showAlert("Заполните оба поля для добавления!");
                 return;
             }
+            sendToBot({ action: "add_word", en: en, ru: ru });
+        }
 
-            // Формируем данные в формате JSON
-            const data = JSON.stringify({
-                action: "add_word",
-                en: en,
-                ru: ru
-            });
+        function deleteWord() {
+            const en = document.getElementById('del_en').value.trim();
+            if (!en) {
+                tg.showAlert("Введите английское слово для удаления!");
+                return;
+            }
+            sendToBot({ action: "delete_word", en: en });
+        }
 
-            // Отправляем данные обратно в бота и закрываем Mini App
-            tg.sendData(data);
+        function sendAction(actionName) {
+            sendToBot({ action: actionName });
         }
     </script>
 </body>

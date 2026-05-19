@@ -12,7 +12,6 @@ TOKEN = os.getenv('TOKEN')
 bot = telebot.TeleBot(TOKEN)
 
 # Словари данных
-user_dicts = {}
 user_states = {}
 
 
@@ -36,8 +35,10 @@ def init_db():
     conn.commit()
     return conn, cursor
 
+
 # Подключаемся
 db_conn, db_cursor = init_db()
+
 
 def main_menu():
     """
@@ -46,15 +47,10 @@ def main_menu():
     :return: Объект ReplyKeyboardMarkup с основными кнопками меню.
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-
     WEB_APP_URL = "https://nnekrasov1.github.io/LangBot/"
     web_app_info = types.WebAppInfo(url=WEB_APP_URL)
     btn_web_app = types.KeyboardButton("📱 Открыть Mini App", web_app=web_app_info)
     markup.add(btn_web_app)
-
-    markup.add("➕ Добавить слово", "📑 Мой словарь")
-    markup.add("✒️ Практика перевода", "🗑️ Удалить слово")
-    markup.add("📖 Теория")
     return markup
 
 
@@ -63,116 +59,70 @@ def handle_web_app_data(message):
     """
     Обрабатывает данные (JSON), присланные из Web App.
     """
+    uid = message.chat.id
     try:
-        # Получаем данные из Mini App
         data = json.loads(message.web_app_data.data)
+        action = data.get("action")
 
-        if data.get("action") == "add_word":
-            en = data["en"].lower()
-            ru = data["ru"].lower()
-            uid = message.chat.id
-
-            # Записываем в базу
-            db_cursor.execute(
-                "INSERT INTO dictionary (user_id, word_en, word_ru) VALUES (?, ?, ?)",
-                (uid, en, ru)
-            )
+        if action == "add_word":
+            en, ru = data["en"].lower(), data["ru"].lower()
+            db_cursor.execute("INSERT INTO dictionary (user_id, word_en, word_ru) VALUES (?, ?, ?)", (uid, en, ru))
             db_conn.commit()
+            bot.send_message(uid, f"✅ Успешно добавлено:\n*{en}* — {ru}", parse_mode="Markdown")
 
-            bot.send_message(uid, f"✅ Успешно добавлено через Mini App:\n*{en}* — {ru}", parse_mode="Markdown")
+        elif action == "delete_word":
+            en = data["en"].lower()
+            # Проверяем, есть ли слово
+            db_cursor.execute("SELECT id FROM dictionary WHERE user_id = ? AND word_en = ?", (uid, en))
+            if db_cursor.fetchone():
+                db_cursor.execute("DELETE FROM dictionary WHERE user_id = ? AND word_en = ?", (uid, en))
+                db_conn.commit()
+                bot.send_message(uid, f"🗑 Слово *{en}* удалено из словаря.", parse_mode="Markdown")
+            else:
+                bot.send_message(uid, f"❌ Слово *{en}* не найдено в вашем словаре.", parse_mode="Markdown")
+
+        elif action == "show_dict":
+            show_dictionary(uid)
+
+        elif action == "practice":
+            start_practice(uid)
+
+        elif action == "theory":
+            send_theory_text(uid)
 
     except Exception as e:
-        bot.send_message(message.chat.id, "❌ Произошла ошибка при обработке данных из Mini App.")
+        bot.send_message(uid, "❌ Произошла ошибка при обработке данных из Mini App.")
         print(f"Web App Error: {e}")
 
 
-def theory_menu():
-    """
-    Создает и возвращает клавиатуру подменю раздела 'Теория'.
-
-    :return: Объект ReplyKeyboardMarkup с выбором тем и кнопкой 'Назад'.
-    """
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add("Артикли", "👈 Назад")
-    return markup
-
-
+@bot.message_handler(commands=['start'])
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """
-    Обрабатывает команду /start. Приветствует пользователя и инициализирует его словарь.
-
-    :param message: Объект сообщения от Telegram API.
+    Обрабатывает команду /start. Приветствует пользователя.
     """
     uid = message.chat.id
-    if uid not in user_dicts:
-        user_dicts[uid] = {}
-    bot.send_message(uid, "Добро пожаловать в LangBot!", reply_markup=main_menu())
+    bot.send_message(
+        uid,
+        "Добро пожаловать в LangBot! 🇬🇧\nНажмите на кнопку ниже, чтобы открыть панель управления.",
+        reply_markup=main_menu()
+    )
 
 
 @bot.message_handler(func=lambda message: True)
-def handle_main_logic(message):
+def handle_text(message):
     """
-    Основной обработчик текстовых сообщений. Управляет навигацией по меню
-    и перенаправляет запросы в соответствующие функции.
-
-    :param message: Объект сообщения от Telegram API.
+    Обработчик обычных текстовых сообщений.
+    Используется только для проверки ответов в режиме практики.
     """
     uid = message.chat.id
-    text = message.text
 
-    if uid not in user_dicts:
-        user_dicts[uid] = {}
-
-    # Навигация и функции
-    if text == "➕ Добавить слово":
-        msg = bot.send_message(uid, "Введите: Word - Перевод")
-        bot.register_next_step_handler(msg, process_add_word)
-
-    elif text == "📑 Мой словарь":
-        show_dictionary(uid)
-
-    elif text == "✒️ Практика перевода":
-        start_practice(uid)
-
-    elif text == "📖 Теория":
-        bot.send_message(uid, "Выберите тему:", reply_markup=theory_menu())
-
-    elif text == "Артикли":
-        send_theory_text(uid)
-
-    elif text == "👈 Назад":
-        bot.send_message(uid, "Главное меню:", reply_markup=main_menu())
-
-    # Проверка ответа в режиме тренировки
-    elif uid in user_states:
+    # Если пользователь сейчас проходит практику
+    if uid in user_states:
         check_answer(message)
-    elif text == "🗑️ Удалить слово":
-        msg = bot.send_message(uid, "Введите английское слово, которое хотите удалить:")
-        bot.register_next_step_handler(msg, process_delete_word)
-
-
-def process_add_word(message):
-    """
-        Обрабатывает ввод пользователя для добавления нового слова в словарь.
-        Ожидает формат 'Слово - Перевод'.
-
-        :param message: Объект сообщения, содержащий добавляемое слово и перевод.
-    """
-    try:
-        en, ru = map(str.strip, message.text.split('-', 1))
-        uid = message.chat.id
-
-        # Записываем в базу
-        db_cursor.execute(
-            "INSERT INTO dictionary (user_id, word_en, word_ru) VALUES (?, ?, ?)",
-            (uid, en.lower(), ru.lower())
-        )
-        db_conn.commit()
-
-        bot.send_message(uid, f"Сохранено в базу: {en}")
-    except Exception:
-        bot.send_message(message.chat.id, "Ошибка! Используйте формат: Слово - Перевод")
+    else:
+        # Если он просто так пишет в чат
+        bot.send_message(uid, "Пожалуйста, используйте кнопку '📱 Открыть Mini App' 👇", reply_markup=main_menu())
 
 
 def show_dictionary(uid):
@@ -191,20 +141,23 @@ def show_dictionary(uid):
     res = "\n".join([f"{en} — {ru}" for en, ru in rows])
     bot.send_message(uid, f"Ваш словарь:\n{res}")
 
+
 def start_practice(uid):
     """
     Запускает режим практики: выбирает случайное слово из словаря пользователя
     и предлагает его перевести.
-
-    :param uid: Уникальный идентификатор чата (пользователя).
     """
-    words = user_dicts.get(uid, {})
-    if not words:
-        bot.send_message(uid, "Для начала добавьте слова.")
+    db_cursor.execute("SELECT word_en, word_ru FROM dictionary WHERE user_id = ?", (uid,))
+    rows = db_cursor.fetchall()
+
+    if not rows:
+        bot.send_message(uid, "Для начала добавьте слова через Mini App.")
         return
-    en = random.choice(list(words.keys()))
-    user_states[uid] = words[en]
-    bot.send_message(uid, f"Переведите: {en}")
+
+    # Выбираем случайную пару
+    en, ru = random.choice(rows)
+    user_states[uid] = ru  # Сохраняем правильный ответ (на русском) для проверки
+    bot.send_message(uid, f"Переведите: *{en}*", parse_mode="Markdown")
 
 
 def check_answer(message):
@@ -221,36 +174,6 @@ def check_answer(message):
         bot.send_message(uid, f"☝️ Нет. Правильно: {correct}")
 
 
-def process_delete_word(message):
-    """
-    Удаляет выбранное слово из базы данных SQLite для текущего пользователя.
-
-    :param message: Объект сообщения с английским словом для удаления.
-    """
-    uid = message.chat.id
-    word_to_delete = message.text.lower().strip()
-
-    try:
-        # Проверяем, есть ли такое слово
-        db_cursor.execute(
-            "SELECT id FROM dictionary WHERE user_id = ? AND word_en = ?",
-            (uid, word_to_delete)
-        )
-        row = db_cursor.fetchone()
-
-        if row:
-            db_cursor.execute(
-                "DELETE FROM dictionary WHERE user_id = ? AND word_en = ?",
-                (uid, word_to_delete)
-            )
-            db_conn.commit()
-            bot.send_message(uid, f"✅ Слово '{word_to_delete}' успешно удалено.")
-        else:
-            bot.send_message(uid, f"❌ Слово '{word_to_delete}' не найдено в вашем словаре.")
-
-    except Exception as e:
-        bot.send_message(uid, "⚠️ Произошла ошибка при обращении к базе данных.")
-
 def send_theory_text(uid):
     """
     Отправляет пользователю теоретический материал по правилам использования артиклей.
@@ -259,27 +182,27 @@ def send_theory_text(uid):
     """
     text = (
         "Артикли (Articles)\n\n"
-        
+
         "Артикль помогает нам понять, о каком именно предмете идёт речь. Например, если вы говорите, что хотите торт "
         "(любой), то будет так:.\n\n"
-        
+
         "I want a cake. = Я хочу торт.\n\n"
-        
+
         "Если же вы хотите сделать акцент на каком-то определённом торте, например, из пекарни в соседнем доме, "
         "— то в предложении уже будет другой артикль:\n\n"
-        
+
         "I want the cake. = Я хочу (конкретный) торт.\n\n"
-        
+
         "В английском языке выделяют три вида артиклей:\n\n"
-        
+
         "1. неопределённый — a/an — употребляется с исчисляемыми существительными в единственном числе\n\n"
         "She read a book. = Она прочитала книгу.\n\n"
-        
+
         "2. определённый — the — используется с исчисляемыми существительными в любом числе и с неисчисляемыми\n\n"
         "I visited the museums. = Я посетил музеи.\n\n"
-        
+
         "3. нулевой артикль — перед исчисляемыми во множественном числе и неисчисляемыми существительными\n\n"
-        
+
         "Knowledge is power. = Знание — сила.\n\n"
     )
     bot.send_message(uid, text, parse_mode="Markdown")
