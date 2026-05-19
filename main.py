@@ -47,7 +47,7 @@ def main_menu():
     """
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    WEB_APP_URL = "https://github.com/nnekrasov1/LangBot/blob/master/index.html"  # Ссылка на фронт
+    WEB_APP_URL = "https://nnekrasov1.github.io/LangBot/"
     web_app_info = types.WebAppInfo(url=WEB_APP_URL)
     btn_web_app = types.KeyboardButton("📱 Открыть Mini App", web_app=web_app_info)
     markup.add(btn_web_app)
