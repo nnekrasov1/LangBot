@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LangBot Mini App</title>
+    <!-- Подключаем библиотеку Telegram Web App -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        /* Стилизация под тему Telegram */
+        body {
+            font-family: sans-serif;
+            background-color: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+            text-align: center;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid var(--tg-theme-hint-color, #ccc);
+            border-radius: 8px;
+            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            color: var(--tg-theme-text-color, #000000);
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--tg-theme-button-color, #3390ec);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Добавить новое слово</h2>
+
+    <input type="text" id="word_en" placeholder="Английское слово (например, Apple)">
+    <input type="text" id="word_ru" placeholder="Перевод (например, Яблоко)">
+
+    <button onclick="sendDataToBot()">Сохранить слово</button>
+
+    <script>
+        // Инициализируем Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Разворачиваем на всю высоту
+
+        function sendDataToBot() {
+            const en = document.getElementById('word_en').value.trim();
+            const ru = document.getElementById('word_ru').value.trim();
+
+            if (!en || !ru) {
+                tg.showAlert("Пожалуйста, заполните оба поля!");
+                return;
+            }
+
+            // Формируем данные в формате JSON
+            const data = JSON.stringify({
+                action: "add_word",
+                en: en,
+                ru: ru
+            });
+
+            // Отправляем данные обратно в бота и закрываем Mini App
+            tg.sendData(data);
+        }
+    </script>
+</body>
+</html>
