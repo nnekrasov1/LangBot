@@ -3,117 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LangBot Control Panel</title>
+    <title>LangBot App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            font-family: sans-serif;
-            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            color: var(--tg-theme-text-color, #000000);
-            padding: 15px;
-            margin: 0;
-            padding-bottom: 30px;
+            font-family: sans-serif; background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
+            color: var(--tg-theme-text-color, #000000); margin: 0; padding: 15px; padding-bottom: 40px;
         }
-        .card {
-            background-color: var(--tg-theme-bg-color, #ffffff);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        h3 {
-            margin-top: 0;
-            margin-bottom: 10px;
-            font-size: 18px;
-            color: var(--tg-theme-text-color, #000000);
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-            border: 1px solid var(--tg-theme-hint-color, #ccc);
-            border-radius: 8px;
-            background-color: var(--tg-theme-secondary-bg-color, #f4f4f5);
-            color: var(--tg-theme-text-color, #000000);
-            font-size: 16px;
-        }
-        button {
-            width: 100%;
-            padding: 14px;
-            background-color: var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 5px;
-        }
-        .btn-danger {
-            background-color: #ff3b30;
-        }
-        .btn-outline {
-            background-color: transparent;
-            border: 2px solid var(--tg-theme-button-color, #3390ec);
-            color: var(--tg-theme-button-color, #3390ec);
-        }
+        .nav { display: flex; gap: 5px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; }
+        .nav button { flex: 1; padding: 10px; border-radius: 8px; border: none; background: #ddd; font-weight: bold; font-size: 14px; cursor: pointer; white-space: nowrap;}
+        .nav button.active { background: var(--tg-theme-button-color, #3390ec); color: #fff; }
+        .tab { display: none; background: var(--tg-theme-bg-color, #fff); padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .tab.active { display: block; }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+        .btn { width: 100%; padding: 14px; background: var(--tg-theme-button-color, #3390ec); color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 5px; }
+        .btn-danger { background-color: #ff3b30; }
+        #output { margin-top: 15px; padding: 10px; background: #e8f5e9; color: #2e7d32; border-radius: 8px; display: none; font-weight: bold; text-align: center;}
+        .dict-item { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        .theory-text { line-height: 1.6; font-size: 15px; }
     </style>
 </head>
 <body>
 
-    <!-- Карточка добавления -->
-    <div class="card">
+    <div class="nav">
+        <button class="active" onclick="showTab('manage')">Слова</button>
+        <button onclick="loadDictionary()">Словарь</button>
+        <button onclick="startPractice()">Практика</button>
+        <button onclick="showTab('theory')">Теория</button>
+    </div>
+
+    <div id="output"></div>
+
+    <!-- Вкладка Добавления/Удаления -->
+    <div id="manage" class="tab active">
         <h3>➕ Добавить слово</h3>
-        <input type="text" id="word_en" placeholder="Английское слово (Cat)">
-        <input type="text" id="word_ru" placeholder="Перевод (Кот)">
-        <button onclick="addWord()">Сохранить</button>
-    </div>
-
-    <!-- Карточка удаления -->
-    <div class="card">
+        <input type="text" id="add_en" placeholder="Английское (Cat)">
+        <input type="text" id="add_ru" placeholder="Перевод (Кот)">
+        <button class="btn" onclick="addWord()">Сохранить</button>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
         <h3>🗑️ Удалить слово</h3>
-        <input type="text" id="del_en" placeholder="Какое слово удалить? (Cat)">
-        <button class="btn-danger" onclick="deleteWord()">Удалить из словаря</button>
+        <input type="text" id="del_en" placeholder="Английское слово">
+        <button class="btn btn-danger" onclick="deleteWord()">Удалить</button>
     </div>
 
-    <!-- Карточка действий -->
-    <div class="card">
-        <h3>🚀 Меню действий</h3>
-        <button class="btn-outline" onclick="sendAction('show_dict')">📑 Показать мой словарь</button>
-        <button class="btn-outline" onclick="sendAction('practice')">✒️ Начать практику</button>
-        <button class="btn-outline" onclick="sendAction('theory')">📖 Читать теорию</button>
+    <!-- Вкладка Словаря -->
+    <div id="dictionary" class="tab">
+        <h3>📑 Ваш словарь</h3>
+        <div id="dict_list">Загрузка...</div>
+    </div>
+
+    <!-- Вкладка Практики -->
+    <div id="practice" class="tab">
+        <h3 id="practice_word">Нажмите начать...</h3>
+        <input type="text" id="practice_answer" placeholder="Введите перевод на русском">
+        <button class="btn" onclick="checkAnswer()">Проверить</button>
+    </div>
+
+    <!-- Вкладка Теории -->
+    <div id="theory" class="tab theory-text">
+        <h3>📖 Артикли (a, an, the)</h3>
+        <p><b>a/an</b> — неопределённый. Я хочу (какой-то) торт: <i>I want a cake.</i></p>
+        <p><b>the</b> — определённый. Я хочу (тот самый) торт: <i>I want the cake.</i></p>
+        <p>Используйте a/an только с исчисляемыми существительными в единственном числе.</p>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+        const UID = tg.initDataUnsafe?.user?.id || 123456; // ID пользователя Телеграм
+        const API_URL = "https://remorse-breeze-available.ngrok-free/";
 
-        function sendToBot(dataObj) {
-            tg.sendData(JSON.stringify(dataObj));
+        // Переключение вкладок
+        function showTab(tabId) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+            hideOutput();
         }
 
-        function addWord() {
-            const en = document.getElementById('word_en').value.trim();
-            const ru = document.getElementById('word_ru').value.trim();
-            if (!en || !ru) {
-                tg.showAlert("Заполните оба поля для добавления!");
-                return;
-            }
-            sendToBot({ action: "add_word", en: en, ru: ru });
+        function showOutput(msg, isError = false) {
+            const out = document.getElementById('output');
+            out.style.display = 'block';
+            out.style.background = isError ? '#ffebee' : '#e8f5e9';
+            out.style.color = isError ? '#c62828' : '#2e7d32';
+            out.innerText = msg;
+            setTimeout(hideOutput, 3000);
+        }
+        function hideOutput() { document.getElementById('output').style.display = 'none'; }
+
+        // API Функции
+        async function apiPost(endpoint, data) {
+            data.uid = UID;
+            const res = await fetch(API_URL + endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            return res.json();
         }
 
-        function deleteWord() {
+        async function addWord() {
+            const en = document.getElementById('add_en').value.trim();
+            const ru = document.getElementById('add_ru').value.trim();
+            if (!en || !ru) return showOutput("Заполните оба поля!", true);
+            const res = await apiPost('/api/add_word', { en, ru });
+            showOutput(res.message);
+            document.getElementById('add_en').value = '';
+            document.getElementById('add_ru').value = '';
+        }
+
+        async function deleteWord() {
             const en = document.getElementById('del_en').value.trim();
-            if (!en) {
-                tg.showAlert("Введите английское слово для удаления!");
-                return;
-            }
-            sendToBot({ action: "delete_word", en: en });
+            if (!en) return showOutput("Введите слово!", true);
+            const res = await apiPost('/api/delete_word', { en });
+            showOutput(res.message, res.status === "error");
+            document.getElementById('del_en').value = '';
         }
 
-        function sendAction(actionName) {
-            sendToBot({ action: actionName });
+        async function loadDictionary() {
+            showTab('dictionary');
+            const res = await fetch(`${API_URL}/api/get_dict?uid=${UID}`);
+            const data = await res.json();
+            const list = document.getElementById('dict_list');
+            if (data.words.length === 0) {
+                list.innerHTML = "Словарь пуст 😔";
+                return;
+            }
+            list.innerHTML = data.words.map(w => `<div class="dict-item"><b>${w.en}</b><span>${w.ru}</span></div>`).join('');
+        }
+
+        // Логика практики
+        let practiceWords = [];
+        let currentWord = null;
+
+        async function startPractice() {
+            showTab('practice');
+            const res = await fetch(`${API_URL}/api/get_dict?uid=${UID}`);
+            const data = await res.json();
+            practiceWords = data.words;
+            if (practiceWords.length === 0) {
+                document.getElementById('practice_word').innerText = "Добавьте слова!";
+                return;
+            }
+            nextPracticeWord();
+        }
+
+        function nextPracticeWord() {
+            currentWord = practiceWords[Math.floor(Math.random() * practiceWords.length)];
+            document.getElementById('practice_word').innerText = `Переведите: ${currentWord.en}`;
+            document.getElementById('practice_answer').value = '';
+        }
+
+        function checkAnswer() {
+            if (!currentWord) return;
+            const answer = document.getElementById('practice_answer').value.trim().toLowerCase();
+            if (answer === currentWord.ru.toLowerCase()) {
+                showOutput("✅ Верно!");
+                nextPracticeWord();
+            } else {
+                showOutput(`❌ Ошибка. Правильно: ${currentWord.ru}`, true);
+            }
         }
     </script>
 </body>
